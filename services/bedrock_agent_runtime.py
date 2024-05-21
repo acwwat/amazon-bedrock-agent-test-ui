@@ -14,6 +14,7 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
         )
 
         output_text = ""
+        citations = []
         trace = {}
 
         for event in response.get("completion"):
@@ -21,6 +22,8 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
             if "chunk" in event:
                 chunk = event["chunk"]
                 output_text += chunk["bytes"].decode()
+                if "attribution" in chunk:
+                    citations = citations + chunk["attribution"]["citations"]
 
             # Extract trace information from all events
             if "trace" in event:
@@ -30,12 +33,11 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
                             trace[trace_type] = []
                         trace[trace_type].append(event["trace"]["trace"][trace_type])
 
-            # TODO: handle citations/references
-
     except ClientError as e:
         raise
 
     return {
         "output_text": output_text,
+        "citations": citations,
         "trace": trace
     }
