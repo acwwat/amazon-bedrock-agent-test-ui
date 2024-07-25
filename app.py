@@ -5,10 +5,10 @@ import streamlit as st
 import uuid
 
 # Get config from environment variables
-agent_id = os.environ.get("BEDROCK_AGENT_ID")
-agent_alias_id = os.environ.get("BEDROCK_AGENT_ALIAS_ID", "TSTALIASID") # TSTALIASID is the default test alias ID
-ui_title = os.environ.get("BEDROCK_AGENT_TEST_UI_TITLE", "Agents for Amazon Bedrock Test UI")
-ui_icon = os.environ.get("BEDROCK_AGENT_TEST_UI_ICON")
+agent_id = '02YY4FGRFT'
+agent_alias_id = 'DGQW5TLH9Y'
+ui_title = "Nettwerk"
+ui_icon = "🧠"
 
 def init_state():
     st.session_state.session_id = str(uuid.uuid4())
@@ -59,7 +59,7 @@ if prompt := st.chat_input():
                 for retrieved_ref in citation["retrievedReferences"]:
                     citation_marker = f"[{citation_num}]"
                     output_text = output_text[:end_span + num_citation_chars] + citation_marker + output_text[end_span + num_citation_chars:]
-                    citation_locs = citation_locs + "\n<br>" + citation_marker + " " + retrieved_ref["location"]["s3Location"]["uri"]
+                    citation_locs += f'<br>{citation_marker} <a href="{retrieved_ref["location"]["s3Location"]["uri"]}" target="_blank">{retrieved_ref["location"]["s3Location"]["uri"]}</a>'
                     citation_num = citation_num + 1
                     num_citation_chars = num_citation_chars + len(citation_marker)
                 output_text = output_text[:end_span + num_citation_chars] + "\n" + output_text[end_span + num_citation_chars:]
