@@ -35,7 +35,9 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
 
     except ClientError as e:
         raise
-
+    print(output_text)
+    print()
+    print(citations)
     return {
         "output_text": output_text,
         "citations": citations,
