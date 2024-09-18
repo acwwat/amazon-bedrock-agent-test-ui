@@ -5,9 +5,9 @@ import streamlit as st
 import uuid
 
 # Get config from environment variables
-agent_id = '02YY4FGRFT'
-agent_alias_id = 'DGQW5TLH9Y'
-ui_title = "Nettwerk"
+agent_id = 'NBTAKYLKCB'
+agent_alias_id = 'XEYR1U2YAV'
+ui_title = "Demo"
 ui_icon = "🧠"
 
 def init_state():
