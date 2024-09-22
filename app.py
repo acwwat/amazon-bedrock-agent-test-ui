@@ -71,12 +71,17 @@ if prompt := st.chat_input():
         st.session_state.citations = response["citations"]
         st.session_state.trace = response["trace"]
 
-trace_type_headers = {
-    "preProcessingTrace": "Pre-Processing",
-    "orchestrationTrace": "Orchestration",
-    "postProcessingTrace": "Post-Processing"
+trace_types_map = {
+    "Pre-Processing": ["preGuardrailTrace", "preProcessingTrace"],
+    "Orchestration": ["orchestrationTrace"],
+    "Post-Processing": ["postProcessingTrace", "postGuardrailTrace"]
 }
-trace_info_types = ["invocationInput", "modelInvocationInput", "modelInvocationOutput", "observation", "rationale"]
+
+trace_info_types_map = {
+    "preProcessingTrace": ["modelInvocationInput", "modelInvocationOutput"],
+    "orchestrationTrace": ["invocationInput", "modelInvocationInput", "modelInvocationOutput", "observation", "rationale"],
+    "postProcessingTrace": ["modelInvocationInput", "modelInvocationOutput", "observation"]
+}
 
 # Sidebar section for trace
 with st.sidebar:
@@ -84,31 +89,44 @@ with st.sidebar:
 
     # Show each trace types in separate sections
     step_num = 1
-    for trace_type in trace_type_headers:
-        st.subheader(trace_type_headers[trace_type])
+    for trace_type_header in trace_types_map:
+        st.subheader(trace_type_header)
 
         # Organize traces by step similar to how it is shown in the Bedrock console
-        if trace_type in st.session_state.trace:
-            trace_steps = {}
-            for trace in st.session_state.trace[trace_type]:
-                # Each trace type and step may have different information for the end-to-end flow
-                for trace_info_type in trace_info_types:
-                    if trace_info_type in trace:
-                        trace_id = trace[trace_info_type]["traceId"]
-                        if trace_id not in trace_steps:
-                            trace_steps[trace_id] = [trace]
-                        else:
-                            trace_steps[trace_id].append(trace)
-                        break
+        has_trace = False
+        for trace_type in trace_types_map[trace_type_header]:
+            if trace_type in st.session_state.trace:
+                has_trace = True
+                trace_steps = {}
 
-            # Show trace steps in JSON similar to the Bedrock console
-            for trace_id in trace_steps.keys():
-                with st.expander("Trace Step " + str(step_num), expanded=False):
-                    for trace in trace_steps[trace_id]:
-                        trace_str = json.dumps(trace, indent=2)
-                        st.code(trace_str, language="json", line_numbers=trace_str.count("\n"))
-                step_num = step_num + 1
-        else:
+                for trace in st.session_state.trace[trace_type]:
+                    # Each trace type and step may have different information for the end-to-end flow
+                    if trace_type in trace_info_types_map:
+                        trace_info_types = trace_info_types_map[trace_type]
+                        for trace_info_type in trace_info_types:
+                            if trace_info_type in trace:
+                                trace_id = trace[trace_info_type]["traceId"]
+                                if trace_id not in trace_steps:
+                                    trace_steps[trace_id] = [trace]
+                                else:
+                                    trace_steps[trace_id].append(trace)
+                                break
+                    else:
+                        trace_id = trace["traceId"]
+                        trace_steps[trace_id] = [
+                            {
+                                trace_type: trace
+                            }
+                        ]
+
+                # Show trace steps in JSON similar to the Bedrock console
+                for trace_id in trace_steps.keys():
+                    with st.expander(f"Trace Step " + str(step_num), expanded=False):
+                        for trace in trace_steps[trace_id]:
+                            trace_str = json.dumps(trace, indent=2)
+                            st.code(trace_str, language="json", line_numbers=trace_str.count("\n"))
+                    step_num = step_num + 1
+        if not has_trace:
             st.text("None")
 
     st.subheader("Citations")
