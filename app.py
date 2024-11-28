@@ -1,8 +1,16 @@
+from dotenv import load_dotenv
 import json
 import os
 from services import bedrock_agent_runtime
 import streamlit as st
 import uuid
+import boto3
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Configure AWS session with default credentials
+session = boto3.Session(region_name='ap-southeast-2')
 
 # Get config from environment variables
 agent_id = os.environ.get("BEDROCK_AGENT_ID")
@@ -10,14 +18,16 @@ agent_alias_id = os.environ.get("BEDROCK_AGENT_ALIAS_ID", "TSTALIASID") # TSTALI
 ui_title = os.environ.get("BEDROCK_AGENT_TEST_UI_TITLE", "Agents for Amazon Bedrock Test UI")
 ui_icon = os.environ.get("BEDROCK_AGENT_TEST_UI_ICON")
 
+# Must be the first Streamlit command
+st.set_page_config(page_title=ui_title, page_icon=ui_icon, layout="wide")
+
 def init_state():
     st.session_state.session_id = str(uuid.uuid4())
     st.session_state.messages = []
     st.session_state.citations = []
     st.session_state.trace = {}
 
-# General page configuration and initialization
-st.set_page_config(page_title=ui_title, page_icon=ui_icon, layout="wide")
+# General page initialization
 st.title(ui_title)
 if len(st.session_state.items()) == 0:
     init_state()
@@ -53,18 +63,75 @@ if prompt := st.chat_input():
         if len(response["citations"]) > 0:
             citation_num = 1
             num_citation_chars = 0
-            citation_locs = ""
+            citation_locs = []
+            citations_map = {}
+            
+            # First pass: collect all citation positions and URLs
+            citation_positions = []
+            citation_urls = {}  # Store position -> URL mapping
+            for citation in response["citations"]:
+                end_span = citation["generatedResponsePart"]["textResponsePart"]["span"]["end"] + 1
+                citation_positions.append(end_span)
+                for retrieved_ref in citation["retrievedReferences"]:
+                    url = retrieved_ref.get("metadata", {}).get("url", retrieved_ref["location"]["s3Location"]["uri"])
+                    citation_urls[end_span] = url
+            
+            # Sort positions in reverse order to process from end to beginning
+            citation_positions.sort(reverse=True)
+            
+            # Check if any position breaks a word
+            for pos in citation_positions:
+                if pos < len(output_text):
+                    # Look for word boundary before and after position
+                    left = output_text[:pos].rstrip()
+                    right = output_text[pos:].lstrip()
+                    
+                    # If we're in the middle of a word, move position to end of word
+                    if (left and right and 
+                        left[-1].isalnum() and right[0].isalnum()):
+                        # Find end of word
+                        word_end = pos
+                        while (word_end < len(output_text) and 
+                               output_text[word_end].isalnum()):
+                            word_end += 1
+                        # Update the position in the citation
+                        for citation in response["citations"]:
+                            if citation["generatedResponsePart"]["textResponsePart"]["span"]["end"] + 1 == pos:
+                                citation["generatedResponsePart"]["textResponsePart"]["span"]["end"] = word_end - 1
+                                citation_urls[word_end] = citation_urls[pos]  # Update URL mapping
+
+            # Now proceed with normal citation processing
             for citation in response["citations"]:
                 end_span = citation["generatedResponsePart"]["textResponsePart"]["span"]["end"] + 1
                 for retrieved_ref in citation["retrievedReferences"]:
-                    citation_marker = f"[{citation_num}]"
+                    article_url = retrieved_ref.get("metadata", {}).get("url", retrieved_ref["location"]["s3Location"]["uri"])
+                    article_title = retrieved_ref.get("metadata", {}).get("title", "Article " + str(citation_num))
+                    
+                    citations_map[citation_num] = article_url
+                    
+                    # Create clickable citation marker
+                    citation_marker = f' <a href="{article_url}" target="_blank" rel="noopener noreferrer">[{citation_num}]</a>'
+                    
+                    if end_span + num_citation_chars < len(output_text) and output_text[end_span + num_citation_chars] != ' ':
+                        citation_marker = ' ' + citation_marker
+                    
                     output_text = output_text[:end_span + num_citation_chars] + citation_marker + output_text[end_span + num_citation_chars:]
-                    citation_locs = citation_locs + "\n<br>" + citation_marker + " " + retrieved_ref["location"]["s3Location"]["uri"]
+                    citation_locs.append((f"[{citation_num}]", article_url, article_title))
+                    
                     citation_num = citation_num + 1
                     num_citation_chars = num_citation_chars + len(citation_marker)
-                output_text = output_text[:end_span + num_citation_chars] + "\n" + output_text[end_span + num_citation_chars:]
-                num_citation_chars = num_citation_chars + 1
-            output_text = output_text + "\n" + citation_locs
+                
+                # Only add newline if we're not at the end of all citations
+                if citation != response["citations"][-1]:
+                    output_text = output_text[:end_span + num_citation_chars] + "\n" + output_text[end_span + num_citation_chars:]
+                    num_citation_chars = num_citation_chars + 1
+            
+            # Add references section at the end with formatted links
+            references = "\n\n---\n### References\n"
+            for marker, url, title in citation_locs:
+                references += f"{marker} [{title}]({url})\n"
+            
+            output_text = output_text + references
 
         placeholder.markdown(output_text, unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": output_text})
