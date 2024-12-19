@@ -1,0 +1,1 @@
+{"Version":"2012-10-17","Statement":[{"Sid":"AllowBedrockRoleAccess","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::831926595680:role/service-role/AmazonBedrockExecutionRoleForKnowledgeBase_dyddq"},"Action":"es:ESHttp*","Resource":"arn:aws:es:ap-southeast-2:831926595680:domain/fyi-domain-1/*"}]}

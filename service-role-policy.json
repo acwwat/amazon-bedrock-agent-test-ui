@@ -1,0 +1,18 @@
+﻿{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:*",
+                "ec2:*",
+                "cloudwatch:*",
+                "autoscaling:*",
+                "s3:*",
+                "cloudformation:*",
+                "iam:PassRole"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

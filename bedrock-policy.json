@@ -1,0 +1,25 @@
+﻿{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AmazonBedrockAgentRetrieveKnowledgeBasePolicyProd",
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:*"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/MLLE9O53PD",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/SOOOVHMJOA",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/RSISVQHSKB",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/VKKVBVMZLB",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/VOOUNOSYKU",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/ZZZK03W38X",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/9PYXHFTADO",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/PNHTCCOLZO",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent/HQK9MJB3ZA",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent-alias/HQK9MJB3ZA/7XTWPEBICD",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/anthropic.claude-v2"
+            ]
+        }
+    ]
+}

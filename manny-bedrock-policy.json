@@ -1,0 +1,28 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:*",
+                "bedrock-agent:*",
+                "bedrock-runtime:*",
+                "bedrock-agent-runtime:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock-agent-runtime:InvokeAgent",
+                "bedrock-runtime:InvokeModel",
+                "bedrock:RetrieveAndGenerate"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent/OI8NJTQ4FZ",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent-alias/OI8NJTQ4FZ/WCSFA099SD",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+            ]
+        }
+    ]
+} 

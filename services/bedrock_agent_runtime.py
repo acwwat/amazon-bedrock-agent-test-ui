@@ -1,54 +1,80 @@
 import boto3
-from botocore.exceptions import ClientError
+import json
 import os
 from dotenv import load_dotenv
 
-def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
-    try:
-        # Load credentials from .env
+class BedrockAgentRuntime:
+    def __init__(self):
         load_dotenv()
         
-        # Create session with credentials from environment variables
-        session = boto3.Session(
-            region_name='ap-southeast-2',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        # Debug prints
+        print("Environment variables:")
+        print(f"BEDROCK_AGENT_ID: {os.getenv('BEDROCK_AGENT_ID')}")
+        print(f"BEDROCK_AGENT_ALIAS_ID: {os.getenv('BEDROCK_AGENT_ALIAS_ID')}")
+        print(f"AWS_DEFAULT_REGION: {os.getenv('AWS_DEFAULT_REGION')}")
+        
+        # Get required environment variables
+        self.agent_id = os.getenv('BEDROCK_AGENT_ID')
+        if not self.agent_id:
+            raise ValueError("BEDROCK_AGENT_ID environment variable is not set")
+            
+        self.agent_alias_id = os.getenv('BEDROCK_AGENT_ALIAS_ID')
+        if not self.agent_alias_id:
+            raise ValueError("BEDROCK_AGENT_ALIAS_ID environment variable is not set")
+            
+        # Initialize AWS session
+        self.session = boto3.Session(
+            region_name=os.getenv('AWS_DEFAULT_REGION', 'ap-southeast-2')
         )
         
-        client = session.client('bedrock-agent-runtime')
-        
-        response = client.invoke_agent(
-            agentId=agent_id,
-            agentAliasId=agent_alias_id,
-            enableTrace=True,
-            sessionId=session_id,
-            inputText=prompt,
+        self.bedrock_agent_runtime = self.session.client(
+            service_name='bedrock-agent-runtime'
         )
 
-        output_text = ""
-        citations = []
-        trace = {}
-
-        for event in response.get("completion", []):
-            if "chunk" in event:
-                chunk = event["chunk"]
-                output_text += chunk["bytes"].decode()
+    def invoke_agent(self, prompt):
+        try:
+            print(f"\nSending prompt: {prompt}")
+            response = self.bedrock_agent_runtime.invoke_agent(
+                agentId=self.agent_id,
+                agentAliasId=self.agent_alias_id,
+                sessionId='test-session-01',
+                inputText=prompt
+            )
+            
+            print("\nRaw response:", response)
+            
+            # Get the completion event stream
+            event_stream = response.get('completion')
+            if not event_stream:
+                return "No completion stream in response"
+            
+            # Handle EventStream response
+            full_response = ""
+            for event in event_stream:
+                print("\nStream event:", event)  # Debug
                 
-                if "attribution" in chunk:
-                    citations.extend(chunk["attribution"]["citations"])
-
-            if "trace" in event:
-                trace_data = event["trace"]["trace"]
-                for trace_type in trace_data:
-                    if trace_type not in trace:
-                        trace[trace_type] = []
-                    trace[trace_type].append(trace_data[trace_type])
-
-    except ClientError as e:
-        raise
-
-    return {
-        "output_text": output_text,
-        "citations": citations,
-        "trace": trace
-    }
+                # Check if we have completion data
+                if 'chunk' in event:
+                    chunk = event['chunk']
+                    if 'bytes' in chunk:
+                        text = chunk['bytes'].decode()
+                        print("Decoded chunk:", text)  # Debug
+                        full_response += text
+                    
+                # Check for citations
+                if 'citations' in event:
+                    citations = event['citations']
+                    print("Citations:", citations)  # Debug
+                    full_response += "\n\nSources:\n"
+                    for citation in citations:
+                        full_response += f"- {citation}\n"
+            
+            print("\nFinal response:", full_response)  # Debug
+            return full_response if full_response else "No response content received"
+            
+        except Exception as e:
+            print(f"\nError invoking agent: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            return f"Sorry, I encountered an error: {str(e)}"

@@ -1,0 +1,40 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeAgent",
+                "bedrock:InvokeModel",
+                "bedrock:RetrieveAndGenerate",
+                "bedrock:Retrieve"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent/HQK9MJB3ZA",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:agent-alias/HQK9MJB3ZA/7XTWPEBICD",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/*",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/RSISVQHSKB",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/VOOUNOSYKU",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/9PYXHFTADO",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/MLLE9O53PD",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/PNHTCCOLZO",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/ZZZK03W38X",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/PNHTCCOLZO/*",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/SOOOVHMJOA",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/VKKVBVMZLB",
+                "arn:aws:bedrock:ap-southeast-2:831926595680:knowledge-base/*",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/cohere.embed-english-v3",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/cohere.embed-multilingual-v3",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+                "arn:aws:bedrock:ap-southeast-2::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+            ]
+        }
+    ]
+}
