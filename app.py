@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import json
 import os
+import re
 from services import bedrock_agent_runtime
 import streamlit as st
 import uuid
@@ -52,21 +53,27 @@ if prompt := st.chat_input():
         )
         output_text = response["output_text"]
 
+        # Check if the output is a JSON object with the instruction and result fields
+        try:
+            # When parsing the JSON, strict mode must be disabled to handle badly escaped newlines
+            # TODO: This is still broken in some cases - AWS needs to double sescape the field contents
+            output_json = json.loads(output_text, strict=False)
+            if "instruction" in output_json and "result" in output_json:
+                output_text = output_json["result"]
+        except json.JSONDecodeError as e:
+            pass
+
         # Add citations
         if len(response["citations"]) > 0:
             citation_num = 1
+            output_text = re.sub(r"%\[(\d+)\]%", r"<sup>[\1]</sup>", output_text)
             num_citation_chars = 0
             citation_locs = ""
             for citation in response["citations"]:
-                end_span = citation["generatedResponsePart"]["textResponsePart"]["span"]["end"] + 1
                 for retrieved_ref in citation["retrievedReferences"]:
                     citation_marker = f"[{citation_num}]"
-                    output_text = output_text[:end_span + num_citation_chars] + citation_marker + output_text[end_span + num_citation_chars:]
                     citation_locs = citation_locs + "\n<br>" + citation_marker + " " + retrieved_ref["location"]["s3Location"]["uri"]
-                    citation_num = citation_num + 1
-                    num_citation_chars = num_citation_chars + len(citation_marker)
-                output_text = output_text[:end_span + num_citation_chars] + "\n" + output_text[end_span + num_citation_chars:]
-                num_citation_chars = num_citation_chars + 1
+                    citation_num += 1
             output_text = output_text + "\n" + citation_locs
 
         placeholder.markdown(output_text, unsafe_allow_html=True)
@@ -90,7 +97,7 @@ trace_info_types_map = {
 with st.sidebar:
     st.title("Trace")
 
-    # Show each trace types in separate sections
+    # Show each trace type in separate sections
     step_num = 1
     for trace_type_header in trace_types_map:
         st.subheader(trace_type_header)
@@ -128,7 +135,7 @@ with st.sidebar:
                         for trace in trace_steps[trace_id]:
                             trace_str = json.dumps(trace, indent=2)
                             st.code(trace_str, language="json", line_numbers=trace_str.count("\n"))
-                    step_num = step_num + 1
+                    step_num += 1
         if not has_trace:
             st.text("None")
 
@@ -142,7 +149,7 @@ with st.sidebar:
                         "generatedResponsePart": citation["generatedResponsePart"],
                         "retrievedReference": citation["retrievedReferences"][retrieved_ref_num]
                     }, indent=2)
-                    st.code(citation_str, language="json", line_numbers=trace_str.count("\n"))
+                    st.code(citation_str, language="json", line_numbers=citation_str.count("\n"))
                 citation_num = citation_num + 1
     else:
         st.text("None")
