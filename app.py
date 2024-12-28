@@ -1,8 +1,11 @@
+from dotenv import load_dotenv
 import json
 import os
 from services import bedrock_agent_runtime
 import streamlit as st
 import uuid
+
+load_dotenv()
 
 # Get config from environment variables
 agent_id = os.environ.get("BEDROCK_AGENT_ID")
