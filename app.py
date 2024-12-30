@@ -43,43 +43,43 @@ if prompt := st.chat_input():
         st.write(prompt)
 
     with st.chat_message("assistant"):
-        placeholder = st.empty()
-        placeholder.markdown("...")
-        response = bedrock_agent_runtime.invoke_agent(
-            agent_id,
-            agent_alias_id,
-            st.session_state.session_id,
-            prompt
-        )
-        output_text = response["output_text"]
+        with st.empty():
+            with st.spinner():
+                response = bedrock_agent_runtime.invoke_agent(
+                    agent_id,
+                    agent_alias_id,
+                    st.session_state.session_id,
+                    prompt
+                )
+            output_text = response["output_text"]
 
-        # Check if the output is a JSON object with the instruction and result fields
-        try:
-            # When parsing the JSON, strict mode must be disabled to handle badly escaped newlines
-            # TODO: This is still broken in some cases - AWS needs to double sescape the field contents
-            output_json = json.loads(output_text, strict=False)
-            if "instruction" in output_json and "result" in output_json:
-                output_text = output_json["result"]
-        except json.JSONDecodeError as e:
-            pass
+            # Check if the output is a JSON object with the instruction and result fields
+            try:
+                # When parsing the JSON, strict mode must be disabled to handle badly escaped newlines
+                # TODO: This is still broken in some cases - AWS needs to double sescape the field contents
+                output_json = json.loads(output_text, strict=False)
+                if "instruction" in output_json and "result" in output_json:
+                    output_text = output_json["result"]
+            except json.JSONDecodeError as e:
+                pass
 
-        # Add citations
-        if len(response["citations"]) > 0:
-            citation_num = 1
-            output_text = re.sub(r"%\[(\d+)\]%", r"<sup>[\1]</sup>", output_text)
-            num_citation_chars = 0
-            citation_locs = ""
-            for citation in response["citations"]:
-                for retrieved_ref in citation["retrievedReferences"]:
-                    citation_marker = f"[{citation_num}]"
-                    citation_locs = citation_locs + "\n<br>" + citation_marker + " " + retrieved_ref["location"]["s3Location"]["uri"]
-                    citation_num += 1
-            output_text = output_text + "\n" + citation_locs
+            # Add citations
+            if len(response["citations"]) > 0:
+                citation_num = 1
+                output_text = re.sub(r"%\[(\d+)\]%", r"<sup>[\1]</sup>", output_text)
+                num_citation_chars = 0
+                citation_locs = ""
+                for citation in response["citations"]:
+                    for retrieved_ref in citation["retrievedReferences"]:
+                        citation_marker = f"[{citation_num}]"
+                        citation_locs = citation_locs + "\n<br>" + citation_marker + " " + retrieved_ref["location"]["s3Location"]["uri"]
+                        citation_num += 1
+                output_text = output_text + "\n" + citation_locs
 
-        placeholder.markdown(output_text, unsafe_allow_html=True)
-        st.session_state.messages.append({"role": "assistant", "content": output_text})
-        st.session_state.citations = response["citations"]
-        st.session_state.trace = response["trace"]
+            st.session_state.messages.append({"role": "assistant", "content": output_text})
+            st.session_state.citations = response["citations"]
+            st.session_state.trace = response["trace"]
+            st.markdown(output_text, unsafe_allow_html=True)
 
 trace_types_map = {
     "Pre-Processing": ["preGuardrailTrace", "preProcessingTrace"],
