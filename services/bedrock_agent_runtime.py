@@ -1,6 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
+
 def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
     try:
         client = boto3.session.Session().client(service_name="bedrock-agent-runtime")
@@ -10,7 +11,7 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
             agentAliasId=agent_alias_id,
             enableTrace=True,
             sessionId=session_id,
-            inputText=prompt,
+            inputText=prompt
         )
 
         output_text = ""
@@ -24,7 +25,7 @@ def invoke_agent(agent_id, agent_alias_id, session_id, prompt):
                 chunk = event["chunk"]
                 output_text += chunk["bytes"].decode()
                 if "attribution" in chunk:
-                    citations = citations + chunk["attribution"]["citations"]
+                    citations += chunk["attribution"]["citations"]
 
             # Extract trace information from all events
             if "trace" in event:
