@@ -1,5 +1,8 @@
 import boto3
 from botocore.exceptions import ClientError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def invoke_agent(agent_id, agent_alias_id, session_id, prompt):

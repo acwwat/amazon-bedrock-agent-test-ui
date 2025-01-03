@@ -1,12 +1,26 @@
 from dotenv import load_dotenv
 import json
+import logging
+import logging.config
 import os
 import re
 from services import bedrock_agent_runtime
 import streamlit as st
 import uuid
+import yaml
 
 load_dotenv()
+
+# Configure logging using YAML
+if os.path.exists("logging.yaml"):
+    with open("logging.yaml", "r") as file:
+        config = yaml.safe_load(file)
+        logging.config.dictConfig(config)
+else:
+    log_level = logging.getLevelNamesMapping()[(os.environ.get("LOG_LEVEL", "INFO"))]
+    logging.basicConfig(level=log_level)
+
+logger = logging.getLogger(__name__)
 
 # Get config from environment variables
 agent_id = os.environ.get("BEDROCK_AGENT_ID")
@@ -15,7 +29,7 @@ ui_title = os.environ.get("BEDROCK_AGENT_TEST_UI_TITLE", "Agents for Amazon Bedr
 ui_icon = os.environ.get("BEDROCK_AGENT_TEST_UI_ICON")
 
 
-def init_state():
+def init_session_state():
     st.session_state.session_id = str(uuid.uuid4())
     st.session_state.messages = []
     st.session_state.citations = []
@@ -26,12 +40,12 @@ def init_state():
 st.set_page_config(page_title=ui_title, page_icon=ui_icon, layout="wide")
 st.title(ui_title)
 if len(st.session_state.items()) == 0:
-    init_state()
+    init_session_state()
 
 # Sidebar button to reset session state
 with st.sidebar:
     if st.button("Reset Session"):
-        init_state()
+        init_session_state()
 
 # Messages in the conversation
 for message in st.session_state.messages:
