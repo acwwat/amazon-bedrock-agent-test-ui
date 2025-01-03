@@ -22,7 +22,8 @@ A generic Streamlit UI for testing generative AI agents built using Agents for A
 3. (Optional) Set the following environment variables similarly to customize the UI:
    - `BEDROCK_AGENT_TEST_UI_TITLE` - The page title. The default `Agents for Amazon Bedrock Test UI` will used if it is not set.
    - `BEDROCK_AGENT_TEST_UI_ICON` - The favicon, such as `:bar_chart:`. The default Streamlit icon will be used if it is not set.
-4. Run the following command to start the Streamlit app:
+4. (Optional) Set the `LOG_LEVEL` environment variable for additional logging using a standard format. If more advanced configuration is needed, copy `logging.yaml.template` and `logging.yaml` and configure it as appropriate.
+5. Run the following command to start the Streamlit app:
 
    ```
    streamlit run app.py --server.port=8080 --server.address=localhost
