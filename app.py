@@ -83,12 +83,29 @@ if prompt := st.chat_input():
             if len(response["citations"]) > 0:
                 citation_num = 1
                 output_text = re.sub(r"%\[(\d+)\]%", r"<sup>[\1]</sup>", output_text)
-                num_citation_chars = 0
                 citation_locs = ""
                 for citation in response["citations"]:
                     for retrieved_ref in citation["retrievedReferences"]:
                         citation_marker = f"[{citation_num}]"
-                        citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['s3Location']['uri']}"
+                        match retrieved_ref['location']['type']:
+                            case 'CONFLUENCE':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['confluenceLocation']['url']}"
+                            case 'CUSTOM':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['customDocumentLocation']['id']}"
+                            case 'KENDRA':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['kendraDocumentLocation']['uri']}"
+                            case 'S3':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['s3Location']['uri']}"
+                            case 'SALESFORCE':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['salesforceLocation']['url']}"
+                            case 'SHAREPOINT':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['sharePointLocation']['url']}"
+                            case 'SQL':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['sqlLocation']['query']}"
+                            case 'WEB':
+                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['webLocation']['url']}"
+                            case _:
+                                logger.warning(f"Unknown location type: {retrieved_ref['location']['type']}")
                         citation_num += 1
                 output_text += f"\n{citation_locs}"
 
