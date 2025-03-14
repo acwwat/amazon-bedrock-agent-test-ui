@@ -32,7 +32,9 @@ ui_icon = os.environ.get("BEDROCK_AGENT_TEST_UI_ICON")
 def init_session_state():
     st.session_state.session_id = str(uuid.uuid4())
     st.session_state.messages = []
+    st.session_state.citation_nums = []
     st.session_state.citations = []
+    st.session_state.titan_citation_style = False
     st.session_state.trace = {}
 
 
@@ -69,45 +71,68 @@ if prompt := st.chat_input():
                 )
             output_text = response["output_text"]
 
-            # Check if the output is a JSON object with the instruction and result fields
+            # An agent that uses Titan as the FM and has knowledge bases attached may return a JSON object with the
+            # instruction and result fields
+            st.session_state.titan_citation_style = False
             try:
                 # When parsing the JSON, strict mode must be disabled to handle badly escaped newlines
-                # TODO: This is still broken in some cases - AWS needs to double sescape the field contents
                 output_json = json.loads(output_text, strict=False)
                 if "instruction" in output_json and "result" in output_json:
                     output_text = output_json["result"]
+                    st.session_state.titan_citation_style = "%[X]%" in output_json["instruction"]
             except json.JSONDecodeError as e:
                 pass
 
             # Add citations
             if len(response["citations"]) > 0:
-                citation_num = 1
-                output_text = re.sub(r"%\[(\d+)\]%", r"<sup>[\1]</sup>", output_text)
-                citation_locs = ""
+                citation_nums = []
+
+                # Citations in response from agents that use Titan as the FM may be out sequence
+                # Thus we need to renumber them
+                def replace_citation(match):
+                    global citation_nums
+                    orig_citation_num = match.group(1)
+                    citation_nums.append(orig_citation_num)
+                    return f"<sup>[{orig_citation_num}]</sup>"
+
+                if st.session_state.titan_citation_style:
+                    output_text = re.sub(r"%\[(\d+)\]%", replace_citation, output_text)
+
+                i = 0
+                citation_locs = {}
                 for citation in response["citations"]:
                     for retrieved_ref in citation["retrievedReferences"]:
-                        citation_marker = f"[{citation_num}]"
-                        match retrieved_ref['location']['type']:
-                            case 'CONFLUENCE':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['confluenceLocation']['url']}"
-                            case 'CUSTOM':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['customDocumentLocation']['id']}"
-                            case 'KENDRA':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['kendraDocumentLocation']['uri']}"
-                            case 'S3':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['s3Location']['uri']}"
-                            case 'SALESFORCE':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['salesforceLocation']['url']}"
-                            case 'SHAREPOINT':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['sharePointLocation']['url']}"
-                            case 'SQL':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['sqlLocation']['query']}"
-                            case 'WEB':
-                                citation_locs += f"\n<br>{citation_marker} {retrieved_ref['location']['webLocation']['url']}"
-                            case _:
-                                logger.warning(f"Unknown location type: {retrieved_ref['location']['type']}")
-                        citation_num += 1
-                output_text += f"\n{citation_locs}"
+                        citation_num = i + 1
+                        if st.session_state.titan_citation_style:
+                            citation_num = citation_nums[i]
+                        if citation_num not in citation_locs.keys():
+                            citation_marker = f"[{citation_num}]"
+                            match retrieved_ref['location']['type']:
+                                case 'CONFLUENCE':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['confluenceLocation']['url']}"
+                                case 'CUSTOM':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['customDocumentLocation']['id']}"
+                                case 'KENDRA':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['kendraDocumentLocation']['uri']}"
+                                case 'S3':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['s3Location']['uri']}"
+                                case 'SALESFORCE':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['salesforceLocation']['url']}"
+                                case 'SHAREPOINT':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['sharePointLocation']['url']}"
+                                case 'SQL':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['sqlLocation']['query']}"
+                                case 'WEB':
+                                    citation_locs[citation_num] = f"{retrieved_ref['location']['webLocation']['url']}"
+                                case _:
+                                    logger.warning(f"Unknown location type: {retrieved_ref['location']['type']}")
+                        i += 1
+                citation_locs = dict(sorted(citation_locs.items(), key=lambda item: int(item[0])))
+                st.session_state.citation_nums = citation_nums
+
+                output_text += "\n"
+                for citation_num, citation_loc in citation_locs.items():
+                    output_text += f"\n<br>[{citation_num}] {citation_loc}"
 
             st.session_state.messages.append({"role": "assistant", "content": output_text})
             st.session_state.citations = response["citations"]
@@ -174,18 +199,26 @@ with st.sidebar:
 
     st.subheader("Citations")
     if len(st.session_state.citations) > 0:
-        citation_num = 1
+        unique_citation_counts = {}
+        i = 0
         for citation in st.session_state.citations:
-            for retrieved_ref_num, retrieved_ref in enumerate(citation["retrievedReferences"]):
-                with st.expander(f"Citation [{str(citation_num)}]", expanded=False):
+            for retrieved_ref in citation["retrievedReferences"]:
+                citation_num = f"{i + 1}"
+                if st.session_state.titan_citation_style:
+                    citation_num = st.session_state.citation_nums[i]
+                if citation_num not in unique_citation_counts.keys():
+                    unique_citation_counts[citation_num] = 1
+                else:
+                    unique_citation_counts[citation_num] += 1
+                with st.expander(f"Citation [{citation_num}] - Reference {unique_citation_counts[citation_num]}", expanded=False):
                     citation_str = json.dumps(
                         {
                             "generatedResponsePart": citation["generatedResponsePart"],
-                            "retrievedReference": citation["retrievedReferences"][retrieved_ref_num]
+                            "retrievedReference": retrieved_ref
                         },
                         indent=2
                     )
                     st.code(citation_str, language="json", line_numbers=True, wrap_lines=True)
-                citation_num = citation_num + 1
+                i += 1
     else:
         st.text("None")
